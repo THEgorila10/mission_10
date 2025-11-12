@@ -1,37 +1,53 @@
 from django.db import models
+from django.contrib.auth.models import User # ייבוא מערכת המשתמשים של ג'אנגו
 
-# Create your models here.
+class Tag(models.Model):
+    """ מודל עבור תגיות (למשל: #עבודה, #פרטי) """
+    name = models.CharField(max_length=100, unique=True, verbose_name="שם תגית")
+
+    def __str__(self):
+        return self.name
+
 class Task(models.Model):
-    
-    # הגדרת בחירות קבועות עבור עדיפות
+    """ מודל המשימה הראשי """
+
+    # --- הגדרות בחירה (Choices) ---
     PRIORITY_CHOICES = [
-        ('L', 'Low'),       # נמוכה
-        ('M', 'Medium'),    # בינונית
-        ('H', 'High'),      # גבוהה
+        ('H', 'גבוהה'),
+        ('M', 'בינונית'),
+        ('L', 'נמוכה'),
     ]
-
-    # הגדרת בחירות קבועות עבור סטטוס
     STATUS_CHOICES = [
-        ('T', 'To Do'),         # לביצוע
-        ('I', 'In Progress'),   # בתהליך
-        ('D', 'Done'),          # בוצע
+        ('new', 'חדשה'),
+        ('in_progress', 'בתהליך'),
+        ('done', 'הושלמה'),
     ]
 
-    # שדות המודל (העמודות בטבלה)
-    title = models.CharField(max_length=200)
-    due_date = models.DateTimeField(null=True, blank=True) # מאפשר ערך ריק
-    priority = models.CharField(
-        max_length=1, 
-        choices=PRIORITY_CHOICES, 
-        default='M' # עדיפות ברירת מחדל
-    )
-    status = models.CharField(
-        max_length=1, 
-        choices=STATUS_CHOICES, 
-        default='T' # סטטוס ברירת מחדל
-    )
-    created_at = models.DateTimeField(auto_now_add=True) # תאריך יצירה אוטומטי
+    # --- שדות בסיסיים ---
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="משתמש")
+    title = models.CharField(max_length=255, verbose_name="כותרת")
+    description = models.TextField(blank=True, null=True, verbose_name="תיאור")
+    due_date = models.DateTimeField(verbose_name="תאריך יעד", null=True, blank=True)
+    priority = models.CharField(max_length=1, choices=PRIORITY_CHOICES, default='M', verbose_name="עדיפות")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="סטטוס")
 
-    # פונקציה שקובעת איך המשימה תופיע באדמין
+    # --- מימוש רעיונות מתקדמים ---
+    parent = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='sub_tasks',
+        verbose_name="משימת אב"
+    )
+    tags = models.ManyToManyField(Tag, blank=True, verbose_name="תגיות")
+
+    # --- שדות אוטומטיים ---
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return self.title
+
+    class Meta:
+        ordering = ['due_date', 'priority'] # סדר מיון ברירת מחדל
