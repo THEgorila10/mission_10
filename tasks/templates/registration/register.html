@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>הרשמה</h2>
+  <p>יצירת חשבון חדש</p>
+  
+  <form method="post">
+    {% csrf_token %}
+    
+    {{ form.as_p }}
+    
+    <button type"submit" style="padding: 10px 20px; font-size: 16px;">הירשם</button>
+  </form>
+{% endblock %}

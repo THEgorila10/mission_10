@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -129,3 +131,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # הגדרות התחברות והתנתקות
 LOGIN_REDIRECT_URL = 'dashboard'  # לאן ללכת אחרי התחברות (לשם של ה-URL)
 LOGOUT_REDIRECT_URL = 'index'     # לאן ללכת אחרי התנתקות (לשם של ה-URL)
+# הגדרות שליחת אימייל (SMTP של ג'ימייל)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# טעינת הפרטים מהקובץ הנסתר (.env)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+print("--- DEBUGGING EMAIL ---")
+print(f"User read from .env: {EMAIL_HOST_USER}")
+print(f"Password read from .env: {EMAIL_HOST_PASSWORD is not None}")
+print("-----------------------")

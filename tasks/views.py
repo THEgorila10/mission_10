@@ -1,10 +1,20 @@
 from django.shortcuts import render
+from django.contrib.auth.models import User
 
 from django.shortcuts import  redirect
 from django.contrib.auth.decorators import login_required
 from .models import Task
 from .forms import TaskForm  #
 from django.utils import timezone
+from django.contrib.auth import login
+from .forms import TaskForm, RegisterForm
+from django.core.mail import send_mail
+from django.contrib.sites.shortcuts import get_current_site
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.urls import reverse
+from django.template.loader import render_to_string
 def index_view(request):
     """
     זוהי דלת הכניסה הראשית לאתר (כתובת "/")
@@ -96,3 +106,61 @@ def add_task_view(request):
         'form': form
     }
     return render(request, 'tasks/add_task.html', context)
+def register_view(request):
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            # 1. צור את המשתמש אבל אל תשמור עדיין
+            user = form.save(commit=False)
+            # 2. סמן אותו כלא פעיל עד לאישור אימייל
+            user.is_active = False 
+            user.save() # שמור את המשתמש הלא פעיל
+
+            # 3. --- בניית קישור ההפעלה ---
+            current_site = get_current_site(request).domain
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            activate_url = reverse('activate', kwargs={'uidb64': uid, 'token': token})
+
+            # 4. יצירת גוף ההודעה מתוך קובץ טקסט
+            mail_subject = f"הפעל את החשבון שלך, {user.username}!"
+            message = render_to_string('registration/account_activation_email.txt', {
+                'user': user,
+                'domain': current_site,
+                'activate_url': activate_url,
+            })
+
+            # 5. שליחת האימייל
+            send_mail(
+                subject=mail_subject,
+                message=message,
+                from_email="admin@taskmanager.com",
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+
+            # 6. שלח את המשתמש לעמוד "בדוק אימייל"
+            return render(request, 'registration/check_email.html')
+    else:
+        form = RegisterForm()
+
+    return render(request, 'registration/register.html', {'form': form})
+def activate_view(request, uidb64, token):
+    try:
+        # נסה לפענח את המזהה ולקבל את המשתמש
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    # בדוק אם המשתמש קיים והטוקן תקין
+    if user is not None and default_token_generator.check_token(user, token):
+        # הפעל את החשבון
+        user.is_active = True
+        user.save()
+        # בצע לוג-אין ושלח לדשבורד
+        login(request, user)
+        return redirect('dashboard')
+    else:
+        # אם הקישור שגוי או פג תוקף
+        return render(request, 'registration/activation_failed.html')
