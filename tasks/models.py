@@ -48,6 +48,18 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+    @property
+    def get_subtask_progress(self):
+        # 'sub_tasks' הוא ה-related_name שהגדרנו בשדה 'parent'
+        subtasks = self.sub_tasks.all() 
+        if not subtasks.exists():
+            return None # אם אין תתי-משימות, אל תחזיר כלום
 
+        total = subtasks.count()
+        completed = subtasks.filter(status='done').count()
+        return f"({completed}/{total})" # יחזיר מחרוזת כמו "(2/5)"
+
+    class Meta:
+        ordering = ['due_date', 'priority']
     class Meta:
         ordering = ['due_date', 'priority'] # סדר מיון ברירת מחדל

@@ -16,7 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-
+from django.urls import include
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # הפניה למערכת ההתחברות/התנתקות המובנית של ג'אנגו
+    # זה יוצר אוטומטית כתובות כמו /accounts/login/ ו- /accounts/logout/
+    path('accounts/', include('django.contrib.auth.urls')), 
+
+    # הפניה לכל הכתובות של אפליקציית tasks
+    # זו הכתובת הראשית שתופסת את דף הבית
+    path('', include('tasks.urls')),
 ]

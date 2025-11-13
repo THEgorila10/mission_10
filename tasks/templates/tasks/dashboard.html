@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+    
+{% block content %}
+  <h2>מנהל המשימות של {{ user.username }}</h2>
+  
+  <a href="{% url 'add_task' %}" style="display: inline-block; padding: 10px 20px; font-size: 16px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-bottom: 20px;">
+      הוסף משימה חדשה +
+  </a>
+  
+  <style>
+    /* --- הגדרת אנימציית סיבוב למסגרת --- */
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .monthly-stats-grid {
+        display: flex;
+        flex-wrap: wrap; 
+        justify-content: space-around; 
+        gap: 20px;
+        background: #f9f9f9;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .stat-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 260px;
+    }
+
+    /* --- התחל שינוי: מבנה חדש לעיגולים 1,2,3 --- */
+    
+    /* קונטיינר חדש שמכיל את שתי השכבות */
+    .stat-circle-container {
+        width: 240px;
+        height: 240px;
+        position: relative; /* מאפשר מיקום אבסולוטי של המסגרת */
+        display: grid; /* ממקם את העיגול הפנימי באמצע */
+        place-items: center;
+    }
+    
+    /* המסגרת המסתובבת (שכבה תחתונה) */
+    .stat-circle-spinner {
+        width: 100%; /* 240px */
+        height: 100%; /* 240px */
+        border-radius: 50%;
+        position: absolute; /* נמצא מאחור */
+        top: 0;
+        left: 0;
+        animation: spin 4s linear infinite; /* רק הוא מסתובב */
+        z-index: 1; /* שכבה 1 (מאחור) */
+    }
+    
+    /* הגדרת צבעי המסגרת המסתובבת */
+    .red-bg { background: conic-gradient(#e74c3c 50%, #f1a9a0 100%); }
+    .blue-bg { background: conic-gradient(#2980b9 50%, #a9cce3 100%); }
+    .green-bg { background: conic-gradient(#2ecc71 50%, #a9dfbf 100%); }
+
+    /* העיגול הפנימי השחור (שכבה עליונה) */
+    .stat-circle-inner {
+        width: 220px; /* קטן ב-20px מהמסגרת, יוצר "שוליים" של 10px */
+        height: 220px;
+        background: #000; /* רקע שחור */
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff; /* כתב לבן */
+        font-size: 80px;
+        font-weight: bold;
+        position: relative; /* מבטיח שהוא מעל */
+        z-index: 2; /* שכבה 2 (מקדימה, סטטי) */
+    }
+    /* --- סוף שינוי --- */
+    
+    .stat-label {
+        margin-top: 10px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    /* עיצוב גרף 4 (משולב) */
+    .combined-pie-chart {
+        width: 240px;
+        height: 240px;
+        border-radius: 50%;
+        position: relative;
+        background: conic-gradient(
+            #e74c3c 0% {{ new_percent }}%, 
+            #2980b9 {{ new_percent }}% {{ in_progress_end_percent }}%,
+            #2ecc71 {{ in_progress_end_percent }}% 100%
+        );
+        display: grid;
+        place-items: center;
+    }
+    
+    .combined-pie-inner {
+        width: 80%;
+        height: 80%;
+        background: white;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 48px;
+        font-weight: bold;
+        color: #333;
+    }
+
+
+    /* --- CSS קיים (לעמודות המשימות) --- */
+    .task-columns { display: flex; justify-content: space-between; gap: 20px; }
+    .task-column { width: 32%; padding: 15px; background: #f4f4f4; border-radius: 8px; }
+    .task-item { background: white; border: 1px solid #ddd; padding: 10px 15px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; gap: 12px; }
+    .task-content { flex-grow: 1; }
+    .task-content small { color: #555; display: block; margin-top: 5px; }
+    .status-circle { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; }
+    .status-new { background-color: #e74c3c; }
+    .status-progress { background-color: #f39c12; }
+    .status-done { background-color: #2ecc71; }
+    .progress-bar-container { background-color: #e0e0e0; border-radius: 5px; height: 10px; width: 100%; margin-top: 8px; overflow: hidden; }
+    .progress-bar-fill { background-color: #2ecc71; height: 100%; border-radius: 5px; transition: width 0.3s ease; }
+  </style>
+
+  <div class="monthly-stats-grid">
+    
+    <div class="stat-box">
+      <div class="stat-circle-container">
+        <div class="stat-circle-spinner red-bg"></div>
+        <div class="stat-circle-inner">
+          <span class="counter" data-target="{{ new_tasks_count }}">0</span>
+        </div>
+      </div>
+      <div class="stat-label">משימות לביצוע</div>
+    </div>
+    
+    <div class="stat-box">
+      <div class="stat-circle-container">
+        <div class="stat-circle-spinner blue-bg"></div>
+        <div class="stat-circle-inner">
+          <span class="counter" data-target="{{ progress_tasks_count }}">0</span>
+        </div>
+      </div>
+      <div class="stat-label">משימות בתהליך</div>
+    </div>
+    
+    <div class="stat-box">
+      <div class="stat-circle-container">
+        <div class="stat-circle-spinner green-bg"></div>
+        <div class="stat-circle-inner">
+          <span class="counter" data-target="{{ done_tasks_count }}">0</span>
+        </div>
+      </div>
+      <div class="stat-label">משימות שהושלמו</div>
+    </div>
+    
+    <div class="stat-box">
+      <div class="combined-pie-chart">
+        <div class="combined-pie-inner">
+          <span class="counter" data-target="{{ total_tasks_count }}">0</span>
+        </div>
+      </div>
+      <div class="stat-label">סיכום יחס חודשי</div>
+    </div>
+    
+  </div>
+  <div class="task-columns">
+    
+    <div class="task-column">
+      <h3>משימות חדשות</h3>
+      {% for task in new_tasks %}
+        <div class="task-item">
+          <span class="status-circle status-new"></span>
+          <div class="task-content">
+            <strong>{{ task.title }}</strong>
+            {% if task.subtask_percentage is not None %}
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: {{ task.subtask_percentage }}%;"></div>
+              </div>
+              <small>{{ task.subtask_percentage }}% הושלם {{ task.get_subtask_progress }}</small>
+            {% endif %}
+            <small>עדיפות: {{ task.get_priority_display }}</small>
+            {% if task.due_date %}
+              <small>תאריך יעד: {{ task.due_date|date:"d/m/Y" }}</small>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <p>אין משימות חדשות.</p>
+      {% endfor %}
+    </div>
+
+    <div class="task-column">
+      <h3>בתהליך</h3>
+      {% for task in in_progress_tasks %}
+        <div class="task-item">
+          <span class="status-circle status-progress"></span>
+          <div class="task-content">
+            <strong>{{ task.title }}</strong>
+            {% if task.subtask_percentage is not None %}
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: {{ task.subtask_percentage }}%;"></div>
+              </div>
+              <small>{{ task.subtask_percentage }}% הושלם {{ task.get_subtask_progress }}</small>
+            {% endif %}
+            <small>עדיפות: {{ task.get_priority_display }}</small>
+            {% if task.due_date %}
+              <small>תאריך יעד: {{ task.due_date|date:"d/m/Y" }}</small>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <p>אין משימות בתהליך.</p>
+      {% endfor %}
+    </div>
+
+    <div class="task-column">
+      <h3>הושלמו</h3>
+      {% for task in done_tasks %}
+        <div class="task-item">
+          <span class="status-circle status-done"></span>
+          <div class="task-content">
+            <strong>{{ task.title }}</strong>
+            {% if task.subtask_percentage is not None %}
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: 100%;"></div>
+              </div>
+              <small>100% הושלם {{ task.get_subtask_progress }}</small>
+            {% endif %}
+            <small>הושלם ב: {{ task.updated_at|date:"d/m/Y" }}</small>
+          </div>
+        </div>
+      {% empty %}
+        <p>אין משימות שהושלמו.</p>
+      {% endfor %}
+    </div>
+
+  </div>
+  
+  
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const counters = document.querySelectorAll('.counter');
+    const duration = 1500; 
+
+    counters.forEach(counter => {
+        const target = +counter.getAttribute('data-target');
+        
+        if (target === 0) {
+            counter.innerText = '0';
+            return;
+        }
+
+        const increment = target / (duration / 16);
+        let current = 0;
+
+        const updateCounter = () => {
+            current += increment; 
+
+            if (current < target) {
+                counter.innerText = Math.ceil(current);
+                requestAnimationFrame(updateCounter);
+            } else {
+                counter.innerText = target;
+            }
+        };
+
+        updateCounter();
+    });
+});
+</script>
+{% endblock %}

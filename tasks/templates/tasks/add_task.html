@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>הוספת משימה חדשה</h2>
+
+  <form method="POST">
+      {% csrf_token %} {{ form.as_p }} 
+
+      <button type="submit" style="padding: 10px 20px; font-size: 16px;">שמור משימה</button>
+  </form>
+
+{% endblock %}
